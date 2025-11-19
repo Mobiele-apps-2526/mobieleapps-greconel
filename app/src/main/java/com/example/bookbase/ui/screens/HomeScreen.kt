@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,12 +15,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -29,12 +35,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.bookbase.R
 import com.example.bookbase.models.Book
+import com.example.bookbase.models.BookCategory
 import com.example.bookbase.models.ImageLinks
 import com.example.bookbase.models.VolumeInfo
 import com.example.bookbase.ui.theme.BookBaseTheme
@@ -54,6 +62,7 @@ fun HomeScreen(
             searchQuery = viewModel.searchQuery,
             onSearchQueryChange = { viewModel.updateSearchQuery(it) },
             onSearchClick = { viewModel.searchBooks() },
+            onClearClick = { viewModel.clearSearch() },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
@@ -61,9 +70,9 @@ fun HomeScreen(
 
         when (bookUiState) {
             is BookUiState.Loading -> LoadingScreen(modifier = Modifier.fillMaxSize())
-            is BookUiState.Success -> BookListScreen(
-                books = bookUiState.books,
-                onListItemClick = onListItemClick,
+            is BookUiState.Success -> CategoryListScreen(
+                categories = bookUiState.categories,
+                onBookClick = onListItemClick,
                 modifier = Modifier.fillMaxSize()
             )
             is BookUiState.Error -> ErrorScreen(
@@ -79,6 +88,7 @@ fun SearchBar(
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     onSearchClick: () -> Unit,
+    onClearClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -89,12 +99,22 @@ fun SearchBar(
         OutlinedTextField(
             value = searchQuery,
             onValueChange = onSearchQueryChange,
-            label = { Text("Search books") },
+            label = { Text("Zoek boeken") },
             modifier = Modifier.weight(1f),
-            singleLine = true
+            singleLine = true,
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = onClearClick) {
+                        Icon(
+                            imageVector = Icons.Default.Clear,
+                            contentDescription = "Wissen"
+                        )
+                    }
+                }
+            }
         )
         Button(onClick = onSearchClick) {
-            Text("Search")
+            Text("Zoek")
         }
     }
 }
@@ -122,112 +142,140 @@ fun ErrorScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Failed to load books",
+            text = "Kon boeken niet laden",
             style = MaterialTheme.typography.headlineSmall,
             modifier = Modifier.padding(16.dp)
         )
         Button(onClick = retryAction) {
-            Text("Retry")
+            Text("Opnieuw proberen")
         }
     }
 }
 
 @Composable
-fun BookListScreen(
-    books: List<Book>,
-    onListItemClick: (Book) -> Unit,
+fun CategoryListScreen(
+    categories: List<BookCategory>,
+    onBookClick: (Book) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    LazyColumn(modifier = modifier) {
-        items(books) { book ->
-            BookCard(
-                book = book,
-                onItemClick = onListItemClick
-            )
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = PaddingValues(vertical = 8.dp)
+    ) {
+        items(categories) { category ->
+            if (category.books.isNotEmpty()) {
+                BookCategoryRow(
+                    category = category,
+                    onBookClick = onBookClick
+                )
+            }
         }
     }
 }
 
 @Composable
-fun BookCard(
+fun BookCategoryRow(
+    category: BookCategory,
+    onBookClick: (Book) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.padding(vertical = 12.dp)) {
+        Text(
+            text = category.title,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(category.books) { book ->
+                BookCardHorizontal(
+                    book = book,
+                    onBookClick = onBookClick
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun BookCardHorizontal(
     book: Book,
-    onItemClick: (Book) -> Unit
+    onBookClick: (Book) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
-        modifier = Modifier
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .fillMaxWidth()
-            .clickable { onItemClick(book) },
+        modifier = modifier
+            .width(140.dp)
+            .clickable { onBookClick(book) },
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.padding(8.dp)
         ) {
             // Book cover image
             val imageUrl = book.volumeInfo.imageLinks?.thumbnail?.replace("http://", "https://")
             if (imageUrl != null) {
                 AsyncImage(
                     model = imageUrl,
-                    contentDescription = "Book cover",
+                    contentDescription = "Boekomslag",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .size(width = 80.dp, height = 120.dp)
+                        .fillMaxWidth()
+                        .height(200.dp)
                         .clip(RoundedCornerShape(4.dp))
                 )
             } else {
                 Box(
                     modifier = Modifier
-                        .size(width = 80.dp, height = 120.dp)
+                        .fillMaxWidth()
+                        .height(200.dp)
                         .clip(RoundedCornerShape(4.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "No\nImage",
+                        text = "Geen\nafbeelding",
                         style = MaterialTheme.typography.bodySmall,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = book.volumeInfo.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = book.volumeInfo.authors?.joinToString(", ") ?: "Unknown author",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = book.volumeInfo.publishedDate ?: "Unknown date",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Text(
+                text = book.volumeInfo.title,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.height(40.dp)
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = book.volumeInfo.authors?.firstOrNull() ?: "Onbekende auteur",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
 
 @Preview(showBackground = true)
 @Composable
-fun BookCardPreview() {
+fun BookCardHorizontalPreview() {
     BookBaseTheme {
-        BookCard(
+        BookCardHorizontal(
             book = Book(
                 id = "1",
                 volumeInfo = VolumeInfo(
@@ -244,15 +292,55 @@ fun BookCardPreview() {
                     ratingsCount = 100
                 )
             ),
-            onItemClick = {}
+            onBookClick = {}
         )
     }
 }
 
 @Preview(showBackground = true)
 @Composable
-fun LoadingScreenPreview() {
+fun BookCategoryRowPreview() {
     BookBaseTheme {
-        LoadingScreen()
+        BookCategoryRow(
+            category = BookCategory(
+                title = "Bestsellers",
+                query = "bestsellers",
+                books = listOf(
+                    Book(
+                        id = "1",
+                        volumeInfo = VolumeInfo(
+                            title = "Book 1",
+                            authors = listOf("Author 1"),
+                            publisher = null,
+                            publishedDate = "2023",
+                            description = null,
+                            pageCount = null,
+                            categories = null,
+                            imageLinks = null,
+                            language = null,
+                            averageRating = null,
+                            ratingsCount = null
+                        )
+                    ),
+                    Book(
+                        id = "2",
+                        volumeInfo = VolumeInfo(
+                            title = "Book 2",
+                            authors = listOf("Author 2"),
+                            publisher = null,
+                            publishedDate = "2023",
+                            description = null,
+                            pageCount = null,
+                            categories = null,
+                            imageLinks = null,
+                            language = null,
+                            averageRating = null,
+                            ratingsCount = null
+                        )
+                    )
+                )
+            ),
+            onBookClick = {}
+        )
     }
 }
