@@ -21,18 +21,40 @@ class BooksViewModel(private val bookRepository: IBookRepository) : ViewModel() 
     var bookUiState: BookUiState by mutableStateOf(BookUiState.Loading)
         private set
 
-    var searchQuery by mutableStateOf("Android programming")
+    var searchQuery by mutableStateOf("")
         private set
 
     init {
-        searchBooks()
+        // Laad standaard boeken bij het opstarten
+        loadInitialBooks()
     }
 
     fun updateSearchQuery(query: String) {
         searchQuery = query
     }
 
+    private fun loadInitialBooks() {
+        viewModelScope.launch {
+            bookUiState = BookUiState.Loading
+            bookUiState = try {
+                // Laad populaire of bestseller boeken bij het opstarten
+                val books = bookRepository.searchBooks("bestsellers")
+                BookUiState.Success(books)
+            } catch (e: IOException) {
+                BookUiState.Error
+            } catch (e: HttpException) {
+                BookUiState.Error
+            }
+        }
+    }
+
     fun searchBooks() {
+        // Alleen zoeken als er een zoekopdracht is ingevoerd
+        if (searchQuery.isBlank()) {
+            loadInitialBooks()
+            return
+        }
+
         viewModelScope.launch {
             bookUiState = BookUiState.Loading
             bookUiState = try {
