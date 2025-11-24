@@ -1,0 +1,48 @@
+Wekelijks rapport
+
+Student(e): Nel Greco                                                      
+
+Overzicht activiteiten
+Week 5 (03/11): 3 uren:
+- API google uitzoeken 
+- App structuur opbouwen 
+
+
+Week 6 (10/11): 4 uren:
+
+- Mappen aanmaken
+- Google API aangevraagd
+- Model aangemaakt
+- foutmeldingen opgelost
+
+Week 7 (17/11): 3 uren:
+- api integreren 
+- data uit api halen en laden 
+
+
+
+Week 8 (24/11): 5 uren:
+- data laden op homescreen
+- zoekbalk functie
+- Homescreen layout aanpassen
+
+- Detailspagina
+
+
+
+Week 9 (01/12): ..... uren:
+
+
+
+Week 10 (08/12): ..... uren:
+
+
+
+Week 11 (15/12): ..... uren:
+
+
+
+Week 12 en volgende weken (dag voor presentatie): ..... uren:
+
+
+
