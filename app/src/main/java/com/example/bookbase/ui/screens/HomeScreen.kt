@@ -1,6 +1,5 @@
 package com.example.bookbase.ui.screens
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,68 +17,46 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.example.bookbase.R
 import com.example.bookbase.models.Book
 import com.example.bookbase.models.BookCategory
-import com.example.bookbase.models.ImageLinks
-import com.example.bookbase.models.VolumeInfo
-import com.example.bookbase.ui.theme.BookBaseTheme
 import com.example.bookbase.viewmodels.BookUiState
 import com.example.bookbase.viewmodels.BooksViewModel
 
 @Composable
-fun HomeScreen(
+fun HomeContent(
     viewModel: BooksViewModel,
     onListItemClick: (Book) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val bookUiState = viewModel.bookUiState
-
-    Column(modifier = modifier.fillMaxSize()) {
-        SearchBar(
-            searchQuery = viewModel.searchQuery,
-            onSearchQueryChange = { viewModel.updateSearchQuery(it) },
-            onSearchClick = { viewModel.searchBooks() },
-            onClearClick = { viewModel.clearSearch() },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+    when (val bookUiState = viewModel.bookUiState) {
+        is BookUiState.Loading -> LoadingStateScreen(modifier = modifier)
+        is BookUiState.Success -> CategoryListScreen(
+            categories = bookUiState.categories,
+            onBookClick = onListItemClick,
+            modifier = modifier
         )
-
-        when (bookUiState) {
-            is BookUiState.Loading -> LoadingScreen(modifier = Modifier.fillMaxSize())
-            is BookUiState.Success -> CategoryListScreen(
-                categories = bookUiState.categories,
-                onBookClick = onListItemClick,
-                modifier = Modifier.fillMaxSize()
-            )
-            is BookUiState.Error -> ErrorScreen(
-                retryAction = { viewModel.searchBooks() },
-                modifier = Modifier.fillMaxSize()
-            )
-        }
+        is BookUiState.Error -> ErrorStateScreen(
+            retryAction = { viewModel.searchBooks() },
+            modifier = modifier
+        )
     }
 }
 
@@ -104,11 +81,8 @@ fun SearchBar(
             singleLine = true,
             trailingIcon = {
                 if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = onClearClick) {
-                        Icon(
-                            imageVector = Icons.Default.Clear,
-                            contentDescription = "Wissen"
-                        )
+                    TextButton(onClick = onClearClick) {
+                        Text("✕")
                     }
                 }
             }
@@ -120,7 +94,7 @@ fun SearchBar(
 }
 
 @Composable
-fun LoadingScreen(modifier: Modifier = Modifier) {
+fun LoadingStateScreen(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier,
         contentAlignment = Alignment.Center
@@ -132,7 +106,7 @@ fun LoadingScreen(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun ErrorScreen(
+fun ErrorStateScreen(
     retryAction: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -242,7 +216,7 @@ fun BookCardHorizontal(
                     Text(
                         text = "Geen\nafbeelding",
                         style = MaterialTheme.typography.bodySmall,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        textAlign = TextAlign.Center
                     )
                 }
             }
@@ -268,79 +242,5 @@ fun BookCardHorizontal(
                 overflow = TextOverflow.Ellipsis
             )
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun BookCardHorizontalPreview() {
-    BookBaseTheme {
-        BookCardHorizontal(
-            book = Book(
-                id = "1",
-                volumeInfo = VolumeInfo(
-                    title = "Android Programming: The Big Nerd Ranch Guide",
-                    authors = listOf("Bill Phillips", "Chris Stewart"),
-                    publisher = "Big Nerd Ranch",
-                    publishedDate = "2019",
-                    description = "A great book",
-                    pageCount = 500,
-                    categories = listOf("Programming"),
-                    imageLinks = ImageLinks(thumbnail = null),
-                    language = "en",
-                    averageRating = 4.5,
-                    ratingsCount = 100
-                )
-            ),
-            onBookClick = {}
-        )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun BookCategoryRowPreview() {
-    BookBaseTheme {
-        BookCategoryRow(
-            category = BookCategory(
-                title = "Bestsellers",
-                query = "bestsellers",
-                books = listOf(
-                    Book(
-                        id = "1",
-                        volumeInfo = VolumeInfo(
-                            title = "Book 1",
-                            authors = listOf("Author 1"),
-                            publisher = null,
-                            publishedDate = "2023",
-                            description = null,
-                            pageCount = null,
-                            categories = null,
-                            imageLinks = null,
-                            language = null,
-                            averageRating = null,
-                            ratingsCount = null
-                        )
-                    ),
-                    Book(
-                        id = "2",
-                        volumeInfo = VolumeInfo(
-                            title = "Book 2",
-                            authors = listOf("Author 2"),
-                            publisher = null,
-                            publishedDate = "2023",
-                            description = null,
-                            pageCount = null,
-                            categories = null,
-                            imageLinks = null,
-                            language = null,
-                            averageRating = null,
-                            ratingsCount = null
-                        )
-                    )
-                )
-            ),
-            onBookClick = {}
-        )
     }
 }

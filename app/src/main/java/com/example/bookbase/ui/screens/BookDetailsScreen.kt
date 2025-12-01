@@ -1,6 +1,5 @@
 package com.example.bookbase.ui.screens
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,21 +15,23 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,9 +40,16 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.text.HtmlCompat
 import coil.compose.AsyncImage
 import com.example.bookbase.models.Book
 import com.example.bookbase.viewmodels.BookDetailsViewModel
+
+// Hulpfunctie om HTML naar AnnotatedString te converteren
+private fun String.fromHtml(): String {
+    return HtmlCompat.fromHtml(this, HtmlCompat.FROM_HTML_MODE_COMPACT).toString()
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,16 +58,15 @@ fun BookDetailsScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val snackbarHostState = remember { SnackbarHostState() }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Boekdetails") },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Terug"
-                        )
+                    TextButton(onClick = onNavigateBack) {
+                        Text("← Terug")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -67,6 +74,15 @@ fun BookDetailsScreen(
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             )
+        },
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
         }
     ) { innerPadding ->
         when {
@@ -82,8 +98,17 @@ fun BookDetailsScreen(
             viewModel.book != null -> {
                 BookDetailsContent(
                     book = viewModel.book!!,
+                    isInReadingList = viewModel.isInReadingList,
+                    onToggleReadingList = { viewModel.toggleReadingList() },
                     modifier = Modifier.padding(innerPadding)
                 )
+            }
+        }
+
+        // Toon success bericht
+        if (viewModel.showSuccessMessage) {
+            LaunchedEffect(Unit) {
+                snackbarHostState.showSnackbar("Toegevoegd aan leeslijst!")
             }
         }
     }
@@ -127,6 +152,8 @@ fun ErrorContent(
 @Composable
 fun BookDetailsContent(
     book: Book,
+    isInReadingList: Boolean,
+    onToggleReadingList: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -137,8 +164,33 @@ fun BookDetailsContent(
         // Header sectie met cover en basis info
         BookHeaderSection(book = book)
 
+        // Leeslijst knop
+        AddToReadingListButton(
+            isInReadingList = isInReadingList,
+            onToggleReadingList = onToggleReadingList,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        )
+
         // Details sectie
         BookDetailsSection(book = book)
+    }
+}
+
+@Composable
+fun AddToReadingListButton(
+    isInReadingList: Boolean,
+    onToggleReadingList: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Button(
+        onClick = onToggleReadingList,
+        modifier = modifier
+    ) {
+        Text(
+            text = if (isInReadingList) "✓ In leeslijst" else "+ Aan leeslijst toevoegen"
+        )
     }
 }
 
@@ -156,7 +208,7 @@ fun BookHeaderSection(book: Book) {
         val imageUrl = book.volumeInfo.imageLinks?.thumbnail?.replace("http://", "https://")
         if (imageUrl != null) {
             AsyncImage(
-                model = imageUrl.replace("zoom=1", "zoom=2"), // Hogere resolutie
+                model = imageUrl.replace("zoom=1", "zoom=2"),
                 contentDescription = "Boekomslag van ${book.volumeInfo.title}",
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
@@ -200,44 +252,65 @@ fun BookHeaderSection(book: Book) {
             )
         }
 
-        // Rating
-        if (book.volumeInfo.averageRating != null) {
-            RatingRow(
-                rating = book.volumeInfo.averageRating,
-                ratingsCount = book.volumeInfo.ratingsCount
-            )
-        }
+        // Rating - ALTIJD TONEN (of "Geen rating" als niet beschikbaar)
+        RatingRow(
+            rating = book.volumeInfo.averageRating,
+            ratingsCount = book.volumeInfo.ratingsCount
+        )
     }
 }
 
 @Composable
 fun RatingRow(
-    rating: Double,
+    rating: Double?,
     ratingsCount: Int?,
     modifier: Modifier = Modifier
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+        ),
         modifier = modifier
     ) {
-        Icon(
-            imageVector = Icons.Default.Star,
-            contentDescription = null,
-            tint = Color(0xFFFFB300),
-            modifier = Modifier.size(20.dp)
-        )
-        Spacer(modifier = Modifier.width(4.dp))
-        Text(
-            text = String.format("%.1f", rating),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold
-        )
-        if (ratingsCount != null) {
-            Text(
-                text = " ($ratingsCount beoordelingen)",
-                style = MaterialTheme.typography.bodyMedium
-            )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            if (rating != null) {
+                // Toon ster icoon
+                Text(
+                    text = "★",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = Color(0xFFFFB300),
+                    fontSize = 28.sp
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Toon rating cijfer
+                Text(
+                    text = String.format("%.1f", rating),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 24.sp
+                )
+
+                // Toon aantal beoordelingen
+                if (ratingsCount != null && ratingsCount > 0) {
+                    Text(
+                        text = " ($ratingsCount)",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
+            } else {
+                // Geen rating beschikbaar
+                Text(
+                    text = "★ Nog geen beoordelingen",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+            }
         }
     }
 }
@@ -252,7 +325,7 @@ fun BookDetailsSection(book: Book) {
         book.volumeInfo.description?.let { description ->
             DetailCard(title = "Beschrijving") {
                 Text(
-                    text = description,
+                    text = description.fromHtml(),
                     style = MaterialTheme.typography.bodyMedium,
                     lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
                 )
